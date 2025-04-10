@@ -11,7 +11,9 @@ import SwiftUI
 struct SaddahApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NavigationStack {
+                SignIn()
+            }
         }
     }
 }
