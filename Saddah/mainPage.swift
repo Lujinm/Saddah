@@ -8,34 +8,36 @@
 import SwiftUI
 
 struct MainPage: View {
-    @State private var messages: [Message] = [Message(text: "مرحبًا! أنا الحارس الذكي، بماذا تريدني أن أساعدك اليوم؟", isAI: true)]
+    @State private var messages: [Message] = [
+        Message(text: "مرحبًا! أنا الحارس الذكي، بماذا تريدني أن أساعدك اليوم؟", isAI: true)
+    ]
     @State private var userInput: String = ""
-    
+
     var body: some View {
         VStack {
-           HStack {
+            
+            HStack {
                 Spacer()
                 Text("صدّه - ذكاء اصطناعي")
                     .font(.title)
                     .fontWeight(.bold)
                 Spacer()
-                                   NavigationLink(destination: Profile()) {
-                                       Image(systemName: "person.circle.fill")
-                                           .font(.title)
-                                           .foregroundColor(.accentColor)
-                                   }
-                               }
-                               .padding()
+                NavigationLink(destination: ContentView()) {
+                    Image(systemName: "person.circle.fill")
+                        .font(.title)
+                        .foregroundColor(.accentColor)
+                }
+            }
+            .padding()
 
             Divider()
-            
-            
+
+           
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(messages) { message in
                         HStack {
                             if message.isAI {
-                                
                                 Text(message.text)
                                     .padding()
                                     .background(Color.accentColor.opacity(0.2))
@@ -57,8 +59,8 @@ struct MainPage: View {
                 }
                 .padding()
             }
-            
-            
+
+          
             HStack {
                 TextField("اكتب رسالتك...", text: $userInput)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -73,16 +75,46 @@ struct MainPage: View {
             }
             .padding(.vertical)
         }
-        
     }
-    
+
     private func sendMessage() {
         guard !userInput.isEmpty else { return }
-        messages.append(Message(text: userInput, isAI: false))
+
+        let userText = userInput
+        messages.append(Message(text: userText, isAI: false))
         userInput = ""
-        // the ai model
+
+        let url = URL(string: "https://visioncoachai-staging-api.azurewebsites.net/coach")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let jsonBody: [String: String] = ["message": userText]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: jsonBody)
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Error: \(error.localizedDescription)")
+                return
+            }
+
+            guard let data = data else {
+                print("No data received")
+                return
+            }
+
+            if let decodedResponse = try? JSONDecoder().decode(AIResponse.self, from: data) {
+                DispatchQueue.main.async {
+                    messages.append(Message(text: decodedResponse.response, isAI: true))
+                }
+            } else {
+                print("Failed to decode: \(String(data: data, encoding: .utf8) ?? "Invalid response")")
+            }
+        }.resume()
     }
+
 }
+
 
 struct Message: Identifiable {
     let id = UUID()
@@ -90,9 +122,19 @@ struct Message: Identifiable {
     let isAI: Bool
 }
 
+
+struct AIResponse: Codable {
+    let response: String
+    let player_name: String?
+    let player_report: String?
+    let is_error: Bool?
+    let error_message: String?
+}
+
+
 #Preview {
     NavigationStack {
         MainPage()
     }
 }
-  
+

@@ -8,12 +8,11 @@
 import SwiftUI
 
 @main
-struct SaddahApp: App {
+struct FitnessTrackerApp: App {
+    
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
-                SignIn()
-            }
+            SignIn()
         }
     }
 }

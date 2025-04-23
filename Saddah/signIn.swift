@@ -11,53 +11,64 @@ struct SignIn: View {
     @State private var backgroundIndex = 0
     @State private var showAuthSheet = false
     @State private var isSignUp = false
+    @State private var isAuthenticated = false
+
     private let backgroundImages = ["signIn1", "signIn2", "signIn3"]
 
     var body: some View {
-        ZStack {
-            Image(backgroundImages[backgroundIndex])
-                .resizable()
-                .scaledToFill()
-                .edgesIgnoringSafeArea(.all)
-
-            VStack {
-                VStack(spacing: 15) {
-                    Button(action: {
-                        isSignUp = false
-                        showAuthSheet.toggle()
-                    }) {
-                        Text("تسجيل الدخول")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.white.opacity(0.8))
-                            .foregroundColor(.black)
-                            .cornerRadius(10)
-                    }
-
-                    Button(action: {
-                        isSignUp = true
-                        showAuthSheet.toggle()
-                    }) {
-                        Text("إنشاء حساب")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.accentColor.opacity(0.8))
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                    }
+        NavigationView {
+            ZStack {
+                NavigationLink(destination: MainPage(), isActive: $isAuthenticated) {
+                    EmptyView()
                 }
-                .padding(.horizontal, 30)
-                .padding(.bottom, 300)
+                .hidden()
+
+                Image(backgroundImages[backgroundIndex])
+                    .resizable()
+                    .scaledToFill()
+                    .edgesIgnoringSafeArea(.all)
+
+                VStack {
+                    VStack(spacing: 15) {
+                        Button(action: {
+                            isSignUp = false
+                            showAuthSheet.toggle()
+                        }) {
+                            Text("تسجيل الدخول")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.white.opacity(0.8))
+                                .foregroundColor(.black)
+                                .cornerRadius(10)
+                        }
+
+                        Button(action: {
+                            isSignUp = true
+                            showAuthSheet.toggle()
+                        }) {
+                            Text("إنشاء حساب")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.accentColor.opacity(0.8))
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                        }
+                    }
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 300)
+                }
             }
+            .onAppear {
+                startBackground()
+            }
+            .sheet(isPresented: $showAuthSheet) {
+                AuthSheet(isSignUp: $isSignUp, isAuthenticated: $isAuthenticated)
+            }
+            .navigationBarHidden(true)
         }
-        .onAppear {
-            startBackground()
-        }
-        .sheet(isPresented: $showAuthSheet) {
-            AuthSheet(isSignUp: $isSignUp)
-        }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 
     private func startBackground() {
@@ -69,6 +80,7 @@ struct SignIn: View {
 
 struct AuthSheet: View {
     @Binding var isSignUp: Bool
+    @Binding var isAuthenticated: Bool
     @State private var email = ""
     @State private var password = ""
     @State private var fullName = ""
@@ -82,7 +94,15 @@ struct AuthSheet: View {
     @State private var showResetConfirmation = false
 
     var body: some View {
-        NavigationView {
+        VStack(spacing: 0) {
+            Text(isSignUp ? "إنشاء حساب" : "تسجيل الدخول")
+                .font(.title)
+                .fontWeight(.bold)
+                .padding(.top, 30)
+                .padding(.bottom, 10)
+
+            Divider()
+
             ScrollView {
                 VStack(spacing: 20) {
                     if isSignUp {
@@ -94,14 +114,12 @@ struct AuthSheet: View {
                     CustomSecureField(title: "كلمة المرور", text: $password)
 
                     if !isSignUp {
-                        Button(action: {
+                        Button("نسيت كلمة المرور؟") {
                             showResetPasswordAlert = true
-                        }) {
-                            Text("نسيت كلمة المرور؟")
-                                .font(.footnote)
-                                .foregroundColor(.blue)
-                                .frame(maxWidth: .infinity)
                         }
+                        .font(.footnote)
+                        .foregroundColor(.blue)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                     }
 
                     if isSignUp {
@@ -125,6 +143,7 @@ struct AuthSheet: View {
                             }
                             isLoading = false
                             if success {
+                                isAuthenticated = true
                                 presentationMode.wrappedValue.dismiss()
                             } else {
                                 errorMessage = "فشل العملية. تحقق من بياناتك وحاول مرة أخرى."
@@ -144,20 +163,18 @@ struct AuthSheet: View {
                     .cornerRadius(10)
 
                     if isSignUp {
-                        Button(action: {
+                        Button("إعادة تعيين") {
                             fullName = ""
                             phoneNumber = ""
                             email = ""
                             password = ""
                             confirmPassword = ""
-                        }) {
-                            Text("إعادة تعيين")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.2))
-                                .foregroundColor(.black)
-                                .cornerRadius(10)
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .foregroundColor(.black)
+                        .cornerRadius(10)
                     }
 
                     Button(action: {
@@ -172,25 +189,23 @@ struct AuthSheet: View {
                 }
                 .padding()
             }
-            .navigationTitle(isSignUp ? "إنشاء حساب" : "تسجيل الدخول")
-            .navigationBarTitleDisplayMode(.inline)
-            .alert("إعادة تعيين كلمة المرور", isPresented: $showResetPasswordAlert, actions: {
-                TextField("أدخل بريدك الإلكتروني", text: $resetEmail)
-                Button("إرسال") {
-                    Task {
-                        let result = await AuthManager.shared.resetPassword(email: resetEmail)
-                        showResetConfirmation = result
-                    }
+        }
+        .alert("إعادة تعيين كلمة المرور", isPresented: $showResetPasswordAlert, actions: {
+            TextField("أدخل بريدك الإلكتروني", text: $resetEmail)
+            Button("إرسال") {
+                Task {
+                    let result = await AuthManager.shared.resetPassword(email: resetEmail)
+                    showResetConfirmation = result
                 }
-                Button("إلغاء", role: .cancel) {}
-            }, message: {
-                Text("سنرسل لك رابطًا لإعادة تعيين كلمة المرور.")
-            })
-            .alert("تم الإرسال", isPresented: $showResetConfirmation) {
-                Button("تم") {}
-            } message: {
-                Text("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.")
             }
+            Button("إلغاء", role: .cancel) {}
+        }, message: {
+            Text("سنرسل لك رابطًا لإعادة تعيين كلمة المرور.")
+        })
+        .alert("تم الإرسال", isPresented: $showResetConfirmation) {
+            Button("تم") {}
+        } message: {
+            Text("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.")
         }
     }
 }
@@ -201,10 +216,35 @@ class AuthManager {
 
     let apiURL = "https://visioncoachai-staging-api.azurewebsites.net"
 
-
     func loginUser(email: String, password: String) async -> Bool {
-        let loginData = ["username": email, "password": password]
-        return await sendRequest(endpoint: "/login", data: loginData)
+        var components = URLComponents(string: "\(apiURL)/login")
+        components?.queryItems = [
+            URLQueryItem(name: "username", value: email),
+            URLQueryItem(name: "password", value: password)
+        ]
+
+        guard let url = components?.url else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+
+        do {
+            let (responseData, _) = try await URLSession.shared.data(for: request)
+            let decoded = try JSONDecoder().decode(LoginResponse.self, from: responseData)
+
+            if !decoded.is_error {
+                TokenManager.shared.saveToken(decoded.token)
+                if let playerID = decoded.player_id {
+                    TokenManager.shared.savePlayerId(String(playerID))
+                }
+                return true
+            } else {
+                return false
+            }
+        } catch {
+            print("Login error: \(error.localizedDescription)")
+            return false
+        }
     }
 
     func registerUser(fullName: String, phoneNumber: String, email: String, password: String, confirmPassword: String) async -> Bool {
@@ -216,15 +256,15 @@ class AuthManager {
             "email": email,
             "password": password
         ]
-        return await sendRequest(endpoint: "/register", data: registerData)
+        return await sendPostRequest(endpoint: "/register", data: registerData)
     }
 
     func resetPassword(email: String) async -> Bool {
         let resetData = ["email": email]
-        return await sendRequest(endpoint: "/reset-password", data: resetData)
+        return await sendPostRequest(endpoint: "/reset-password", data: resetData)
     }
 
-    private func sendRequest(endpoint: String, data: [String: Any]) async -> Bool {
+    private func sendPostRequest(endpoint: String, data: [String: Any]) async -> Bool {
         guard let url = URL(string: apiURL + endpoint) else { return false }
 
         var request = URLRequest(url: url)
@@ -233,16 +273,9 @@ class AuthManager {
         request.httpBody = try? JSONSerialization.data(withJSONObject: data)
 
         do {
-            let (responseData, response) = try await URLSession.shared.data(for: request)
-            
-            // Debugging
-            if let httpResponse = response as? HTTPURLResponse {
-                print("Status code: \(httpResponse.statusCode)")
-            }
-            print("Response: \(String(data: responseData, encoding: .utf8) ?? "Invalid response")")
-            
-            let decodedResponse = try JSONDecoder().decode(AuthResponse.self, from: responseData)
-            return decodedResponse.success
+            let (responseData, _) = try await URLSession.shared.data(for: request)
+            let decoded = try JSONDecoder().decode(AuthResponse.self, from: responseData)
+            return decoded.success
         } catch {
             print("Error: \(error.localizedDescription)")
             return false
@@ -250,8 +283,66 @@ class AuthManager {
     }
 }
 
+struct LoginResponse: Codable {
+    let token: String
+    let type: String
+    let expires: String
+    let is_error: Bool
+    let error_message: String?
+    let player_id: Int?
+}
+
 struct AuthResponse: Codable {
     let success: Bool
+}
+
+class TokenManager {
+    static let shared = TokenManager()
+    private let tokenKey = "authToken"
+    private let playerIdKey = "playerId"
+    
+    private init() {}
+    
+    func saveToken(_ token: String) {
+        UserDefaults.standard.set(token, forKey: tokenKey)
+    }
+    
+    func getToken() -> String? {
+        UserDefaults.standard.string(forKey: tokenKey)
+    }
+    
+    func savePlayerId(_ id: String) {
+        UserDefaults.standard.set(id, forKey: playerIdKey)
+    }
+    
+    func getPlayerId() -> String? {
+        UserDefaults.standard.string(forKey: playerIdKey)
+    }
+    
+    func clearAll() {
+        UserDefaults.standard.removeObject(forKey: tokenKey)
+        UserDefaults.standard.removeObject(forKey: playerIdKey)
+    }
+}
+
+
+
+class PlayerManager {
+    static let shared = PlayerManager()
+    private let playerIDKey = "playerID"
+
+    func savePlayerID(_ id: Int) {
+        UserDefaults.standard.set(id, forKey: playerIDKey)
+    }
+
+    func getPlayerID() -> Int? {
+        let id = UserDefaults.standard.integer(forKey: playerIDKey)
+        return id == 0 ? nil : id
+    }
+
+    func clearPlayerID() {
+        UserDefaults.standard.removeObject(forKey: playerIDKey)
+    }
 }
 
 struct CustomTextField: View {
@@ -279,7 +370,6 @@ struct CustomSecureField: View {
             .cornerRadius(10)
     }
 }
-
 #Preview {
     SignIn()
 }
